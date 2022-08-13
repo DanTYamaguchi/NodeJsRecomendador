@@ -1,7 +1,6 @@
-const { error, count } = require('console');
+const { json } = require('express');
 const fs = require('fs');
-const { posix } = require('path');
-const { exit } = require('process');
+
 
 class Json {
 
@@ -127,8 +126,42 @@ class Json {
         
     }
 
+    createNewUser(nome, cpf) {
+
+        const data = this.loadJson();
+        const cpfs = [];
+
+        for (let i=0; i < data.length; i++) {
+            cpfs.push(data[i].cpf);
+        }
+
+        if (cpfs.indexOf(cpf) !== -1) {
+
+            console.log("Usuário existente...")
+
+        } else {
+
+            const newData = {
+                            "nome":nome,
+                            "cpf":cpf,
+                            "amigos":[]
+                            }
+            
+
+            console.log("Criando novo usuário...")
+
+            data.push(newData)
+           
+            //const newData = Object.assign({}, data, newUser);
+
+            return fs.writeFileSync(this.filename, JSON.stringify(data), null, 2)
+
+        }
+    }
 
 }
+
+module.exports = Json;
 
 /*const data = new Json("./user.json");
 
