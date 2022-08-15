@@ -52,7 +52,10 @@ app.post('/relationship', (req,res)=>{
 app.get('/recommendations/:cpf', (req,res)=> {
 
     var arr = user.getRecommendations(req.params.cpf)
-    res.send(user.recByPoints(arr, req.params.cpf))
+    var retorno = user.recByPoints(arr, req.params.cpf)
+
+    res.status(retorno.status)
+    res.send(retorno.message)
 
 })
 
@@ -62,6 +65,7 @@ app.delete('/clean', (req,res)=>{
 
     var retorno = user.cleanJson()
 
+    res.status(retorno.status)
     res.send(retorno.message)
 
 })

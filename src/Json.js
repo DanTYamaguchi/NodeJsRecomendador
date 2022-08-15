@@ -300,7 +300,9 @@ class Json {
         this.users = [];
         this.updateJsonUsers();
         return {
-            "message":"Todos usuários foram apagados..."
+            
+            "message":"Todos usuários foram apagados...",
+            "status":200
         }
     }
 }
