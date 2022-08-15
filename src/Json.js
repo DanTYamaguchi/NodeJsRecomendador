@@ -287,7 +287,10 @@ class Json {
         }
 
         console.log("Recomendações: "+ orderCpfList)
-        return orderCpfList;
+        return {
+            "message": orderCpfList,
+            "status":200
+        };
         
     }
 
