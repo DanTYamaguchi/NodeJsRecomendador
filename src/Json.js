@@ -1,75 +1,238 @@
-const { json } = require('express');
-const fs = require('fs');
+var fs = require('fs');
 
-
+/**
+ Classe responsável pela manipulação dos dados do arquivo "user.json" 
+ que faz o papel do banco de dados
+ */
 class Json {
 
-    constructor(filename = "") {
-        if (fs.existsSync(filename)) {
-            this.filename = filename;
+    constructor() {
+
+        this.filename = "./user.json";
+
+        this.loadJson();
+        
+    }
+
+    loadJson() {        //carrega todos os dados do banco
+        
+        this.users = JSON.parse (
+        fs.existsSync(this.filename)
+            ? fs.readFileSync(this.filename).toString()
+            : "null"
+        );
+    }
+
+
+
+    isEmpty(obj) {      // Verifica se o objeto está vazio
+        for(var prop in obj) {
+
+            if(obj.hasOwnProperty(prop))
+
+                return false;
+        }
+
+        return true;
+    }
+
+
+
+    getUserData(cpf) {      // dados de um usuário pelo seu cpf
+   
+        var valido = this.validaCpf(cpf)
+
+        if (valido) {
+            
+            var userData = this.users.filter(function(user) {
+               return (user.cpf === cpf)
+            })
+
+            if (this.isEmpty(userData)) {
+                
+                return {
+                    "message": "Usuário Inexistente...",
+                    "status":404
+                };
+
+            } else { 
+
+                return {
+                    "message": userData,
+                    "status":200
+                };
+            }
+
+
         } else {
-            console.log("File path not found...")
+            
+            return {
+                "message": "Número de CPF inválido...",
+                "status":400
+            }
+        }
+    }
+
+
+
+    verificaExistencia(cpf) {       // verifica se usuario já existe
+        var cpfs = [];
+        this.users.forEach(user => {
+            cpfs.push(user.cpf);
+        });
+
+        if (cpfs.indexOf(cpf) > -1) {
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+
+
+    validaCpf(cpf) {        // Valida quantidade de caracteres do CPF
+        return cpf.length === 11;
+    }
+
+
+    
+    createNewUser(nome, cpf) {      // cria novo usuário no banco
+        
+        var valido = this.validaCpf(cpf)
+        if (valido) {
+            var existe = this.verificaExistencia(cpf);
+            if (existe) {
+
+                return {
+                    "message": "Usuário existente",
+                    "status":400
+                };
+
+            } else {
+
+                var newUser = {
+                                "nome":nome,
+                                "cpf":cpf,
+                                "amigos":[]
+                            }
+                
+                console.log("Criando novo usuário...")
+
+                this.users.push(newUser)
+
+                this.updateJsonUsers()
+
+                console.log("Usuário cadastrado com sucesso!")
+                return {
+                    "message": "Usuário cadastrado com sucesso!",
+                    "status":200
+                };
+
+            }    
+
+        } else { 
+            return {
+                "message": "Número de CPF inválido",
+                "status":400
+            };
+        }
+    }
+
+
+
+    createNewRelationship (cpf1, cpf2) {            // cria relação de amizades entre 2 usuarios existentes que não era amigos
+
+        var data1 = this.getUserData(cpf1);
+        var data2 = this.getUserData(cpf2);
+
+        var valido1 =  this.validaCpf(cpf1);
+        var valido2 =  this.validaCpf(cpf2);
+
+        if (valido1 && valido2) {
+
+            var existe1 = this.verificaExistencia(cpf1);
+            var existe2 = this.verificaExistencia(cpf2);
+
+            if (existe1 && existe2) {
+                
+                var amigos1 = new Set(data1['message'][0].amigos);
+                amigos1.add(cpf2);
+                data1['message'][0].amigos = Array.from(amigos1);
+
+                var amigos2 = new Set(data2['message'][0].amigos);
+                amigos2.add(cpf1);
+                data2['message'][0].amigos = Array.from(amigos2);
+
+                this.updateJsonUsers()
+
+                return {
+                    "message": "Os dois CPFS agora são amigos!",
+                    "status":200
+                }
+                
+
+            } else {
+                return {
+                    "message": "CPF não encontrado",
+                    "status":404
+                }
+            };
+
+        } else { 
+            return {
+            "message": "Número de CPF inválido",
+            "status":400
+            };
         }
         
     }
 
-    loadJson() {
-        return JSON.parse (
-        fs.existsSync(this.filename)
-            ? fs.readFileSync(this.filename).toString()
-            : "null"
-        )
+
+
+    updateJsonUsers(){      // Atualiza o banco de dados do arquivo Json com as novas alterações
+        
+        fs.writeFileSync(this.filename, JSON.stringify(this.users, null, 2));
+        
     }
 
 
-    getUserData(cpf) {
 
-        if (cpf.length === 11){
-            const users = this.loadJson();
-                this.userData = users.filter(function(user) {
-                    return user.cpf === cpf;
-                })
-                if (this.userData === null) {
-                    console.log("Erro 404 - Usúario inexistente")
-                }
-        } else {
-            console.log("Error Status 400 - Número de CPF inválido...");
-        }
-    }
+    getUserFriends(cpf) {       // Retorna os amigos de um CPF
 
-
-    getUserFriends(cpf) {
-
-        this.getUserData(cpf);
-        return this.userData[0].amigos;        
+        var userData = this.getUserData(cpf);
+        return userData['message'][0].amigos;        
 
     }
 
-    getUserName(cpf){
+
+
+    getUserName(cpf){       // Retorna o nome de um CPF
 
         var nomes = []
 
         for (let i=0; i < cpf.length; i++){
-            this.getUserData(cpf[i]);
-            nomes.push(this.userData[0].nome) ;
+            var userData = this.getUserData(cpf[i]);
+            nomes.push(userData['message'][0].nome) ;
         }
         return nomes;
     }
 
-    getRecommendations(cpf) {
+
+
+    getRecommendations(cpf) {           // descobre novas amizades a partir dos amigos de amigos
 
         var recommendations = [];
 
-        const friendsCpf = this.getUserFriends(cpf);
+        var friendsCpf = this.getUserFriends(cpf);
 
-        for(let i=0; i < friendsCpf.length; i++ ) {
-            recommendations.push(this.getUserFriends(friendsCpf[i]));
-        }
+        friendsCpf.forEach(friend => {
+            recommendations.push(this.getUserFriends(friend));
+        });
 
-        const list = recommendations.toString();
-        const array = list.split(",");
+        var list = recommendations.toString();
+        var array = list.split(",");
         
-        const recCPF = array.filter(function(f){
+        var recCPF = array.filter(function(f){
             return f !== cpf
         });
 
@@ -77,10 +240,11 @@ class Json {
     }
 
 
-    recByPoints(arrayCpf, cpf) {
 
-        const points = []
-        const friends = this.getUserFriends(cpf)
+    recByPoints(arrayCpf, cpf) {            // ordena a lista de recomendaçoes por relevância
+
+        var points = []
+        var friends = this.getUserFriends(cpf)
 
         arrayCpf.forEach(element => {
             var count = 0;
@@ -96,7 +260,7 @@ class Json {
                 
             }
 
-            const data = {
+            var data = {
             [element] : count
             }
             points.push(data);   
@@ -108,7 +272,7 @@ class Json {
             list[Object.keys(points[i])] = Object.values(points[i])
         }
         
-        let sortable = [];
+        var sortable = [];
         for (var pontos in list) {
             sortable.push([pontos, list[pontos]]);
         }
@@ -117,56 +281,25 @@ class Json {
             return b[1] - a[1];
         });
 
-        const orderCpfList = []
+        var orderCpfList = []
         for(let i=0; i < sortable.length; i++ ){
             orderCpfList.push(sortable[i][0])
         }
 
+        console.log("Recomendações: "+ orderCpfList)
         return orderCpfList;
         
     }
 
-    createNewUser(nome, cpf) {
 
-        const data = this.loadJson();
-        const cpfs = [];
+    cleanJson() {           // Apaga todos os dados do banco de dados do arquivo Json
 
-        for (let i=0; i < data.length; i++) {
-            cpfs.push(data[i].cpf);
-        }
-
-        if (cpfs.indexOf(cpf) !== -1) {
-
-            console.log("Usuário existente...")
-
-        } else {
-
-            const newData = {
-                            "nome":nome,
-                            "cpf":cpf,
-                            "amigos":[]
-                            }
-            
-
-            console.log("Criando novo usuário...")
-
-            data.push(newData)
-           
-            //const newData = Object.assign({}, data, newUser);
-
-            return fs.writeFileSync(this.filename, JSON.stringify(data), null, 2)
-
+        this.users = [];
+        this.updateJsonUsers();
+        return {
+            "message":"Todos usuários foram apagados..."
         }
     }
-
 }
 
 module.exports = Json;
-
-/*const data = new Json("./user.json");
-
-const cpf = "11111111111";
-const arr = data.getRecommendations(cpf)
-
-console.log(data.getUserName(data.recByPoints(arr,cpf)))*/
-

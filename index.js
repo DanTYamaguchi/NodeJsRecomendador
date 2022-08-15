@@ -1,45 +1,70 @@
+// importando bibliotecas
 const express = require('express');
 const http = require('http');
 const fs = require('fs');
 const Json = require('./src/Json.js');
+const bodyParser = require("body-parser")
 
 const app = express();
 const PORT = 3000;
 
-//const data = require('./src/user.json');
+const user = new Json();
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended:false}));
 
 
 
+// Rotas: 
+app.get('/person/:cpf', (req,res)=>{
 
-app.get('/persons', (req,res)=>{
+    var cpf = req.params.cpf.toString()
+    
+    var retorno = user.getUserData(cpf)
+    
+    res.status(retorno.status)
+    res.send(retorno.message)
 
-    fs.readFile('./src/user.json', 'utf-8', (err, jsonString) => {
-        if(err) {
-            console.log(err);
-        } else {
-            const data = JSON.parse(jsonString);
-            res.send(data[2].amigos.map((amigos) => amigos.cpf)) /* separa lista de amigos */
-        }
-    })
+})
+
+
+app.post('/person', (req,res)=>{
+    
+    var retorno = user.createNewUser(req.body.nome, req.body.cpf)
+
+    res.status(retorno.status)
+    res.send(retorno.message)
+
+})
+
+
+app.post('/relationship', (req,res)=>{
+
+    var retorno = user.createNewRelationship(req.body.cpf1, req.body.cpf2) // recebe variaveis via post => cpf1, cpf2
+    
+    res.status(retorno.status)
+    res.send(retorno.message)
+
+   
+})
+
+
+app.get('/recommendations/:cpf', (req,res)=> {
+
+    var arr = user.getRecommendations(req.params.cpf)
+    res.send(user.recByPoints(arr, req.params.cpf))
+
 })
 
 
 
+app.delete('/clean', (req,res)=>{
 
+    var retorno = user.cleanJson()
 
-    
-
-
-
-app.get('/teste', (req,res)=>{
-    
-    const json = new Json('./src/user.json')
-    const criar = json.createNewUser("Amigo F", "66666666666");
-    console.log(criar)
-    res.send(criar)
-
-    
+    res.send(retorno.message)
 
 })
+
 
 app.listen(3000);
